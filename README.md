@@ -1,11 +1,11 @@
-# 学びの深まり評価：LLMプロンプト・モデル・パラメータ
+# 学びの深まり評価：LLMプロンプト・モデル・パラメータ，分析スクリプト，補足資料
 
-本ドキュメントは，下記論文の付録として公開する，「学びの深まり」評価に用いたLLMプロンプト・モデル・APIパラメータの完全な仕様である．本論文では，**主指標として単元目標準拠ルーブリック**を，**補助指標としてSOLOタクソノミー**を併用しており，両指標の設定を本文書にまとめて公開する．
+本リポジトリは，下記論文の付録として，振り返り記述の深まりの評価に用いたLLMプロンプト・モデル・APIパラメータ・集約処理の仕様，論文中の数値を再現する分析スクリプト，および本文に載せきれなかった補足資料を公開するものである．本論文では，**主指標として単元目標準拠ルーブリック**を，**補助指標としてSOLOタクソノミー**を併用しており，両指標の設定を本文書にまとめて公開する．
 
-- **論文タイトル**：クラウド環境下の他者参照行動の3類型と学びの深まり ―小学校第4学年国語科「ごんぎつね」の学習履歴データに基づく実証分析―
-- **掲載誌**：日本教育工学会 2027年度発刊特集号（投稿区分：特集論文）
+- **論文タイトル**：授業支援システムにおける他者参照行動の類型と振り返り記述の深まりとの対応 ―小学４年国語科の物語文「ごんぎつね」の学習履歴データを用いた探索的分析―
+- **投稿先**：教育システム情報学会誌 特集号「これからの学習を生み出す学習デザイン・支援システム・分析」（一般論文，査読中）
 - **対象**：小学校4年生『ごんぎつね』振り返り記述（28名 × 平均5.3ページ＝148記述）
-- **本ドキュメント更新日**：2026年5月19日
+- **本ドキュメント更新日**：2026年10月26日（改稿版に合わせて，補足資料・分析スクリプトを追加し，記載を更新）
 
 ---
 
@@ -14,6 +14,8 @@
 - [指標1：単元目標準拠ルーブリック評価（主指標）](#指標1単元目標準拠ルーブリック評価主指標)
 - [指標2：SOLOタクソノミー評価（補助指標）](#指標2soloタクソノミー評価補助指標)
 - [両指標の対応関係と妥当性・信頼性](#両指標の対応関係と妥当性信頼性)
+- [補足資料（supplementary/）](#補足資料supplementary)
+- [分析スクリプト（analysis/）](#分析スクリプトanalysis)
 - [倫理・データ取り扱い](#倫理データ取り扱い)
 - [引用文献](#引用文献)
 - [ライセンス・引用](#ライセンス引用)
@@ -360,7 +362,7 @@ def aggregate_across_models(judgments_3models):
 | 指標 | 実測値 | 解釈 |
 |---|---|---|
 | 第一著者人手評定 vs 3LLM中央値（4段階線形重み付け） | Cohen's *κ*<sub>w</sub> = **.606** | substantial agreement |
-| 二値化（A以上 vs B以下）人手 vs LLM | Cohen's *κ* = **.595** | substantial agreement |
+| 二値化（A以上 vs B以下）人手 vs LLM | Cohen's *κ* = **.595** | moderate agreement |
 | 隣接一致率（人手 vs LLM） | **98.0%** | — |
 | 3LLM相互の評価一致度 | ICC(2,3) = **.895** | excellent |
 | 3LLM間 Pearson 相関 | *r* = .72〜.87 | — |
@@ -387,6 +389,28 @@ def aggregate_across_models(judgments_3models):
 
 ---
 
+# 補足資料（supplementary/）
+
+論文本文で「補足資料」として参照している詳細な結果である．いずれも群または指標の単位で集計した値であり，児童個人のデータや記述は含まない．表番号・節番号は改稿版の論文に対応する．
+
+| ファイル | 内容 | 本文との対応 |
+|---|---|---|
+| `S1_cluster_number_k2-6.csv` | k = 2〜6のk-means解の評価指標（群内平方和，シルエット係数，Calinski–Harabasz指標，Davies–Bouldin指標，Gap統計量と標準誤差，群の大きさ） | 3.3.1項，4.1節，表8 |
+| `S2_cluster_stability_jaccard.csv` | 復元抽出による再標本化と80%部分標本（各1,000回）による群ごとの平均Jaccard係数と，係数が.5未満・.75以上となった割合 | 3.3.1項，4.1節 |
+| `S3_sensitivity_ARI.csv` | 指標の組や手法を変えた解（4指標，主成分得点，Ward法，参照の集中度の分母を27名とした6指標，ほかの補足的な手法）と原解との一致（調整ランド指数） | 3.3.1項，4.1節 |
+| `S4a_indicator_spearman.csv`，`S4b_indicator_VIF.csv` | 6指標間の順位相関と分散拡大係数 | 3.3.1項，4.1節 |
+| `S5_k4_solution.csv` | k = 4の解の各群の構成，最終振り返りでの達成率，変化量，6指標の平均 | 4.3.1項 |
+| `S6_change_between_groups.txt` | 前半→後半の変化量の群間比較（Kruskal-Wallis検定，群間の差のブートストラップ95%信頼区間，線形混合モデルの交互作用，検出力，群内正確検定の最小可能p値） | 4.3.1項，表12 |
+| `S7_text_length.txt` | 最終振り返りの文字数と，記述量による代替説明の確認（文字数を共変量に加えたロジスティック回帰，文字数の中央値で層化した順列検定） | 4.3.3項，4.4節 |
+| `S8_logistic_6indicators.csv` | 6指標による最終振り返りでの達成の多変量ロジスティック回帰（L2正則化）の係数とブートストラップ区間，および各指標の単変量の順位相関 | 4.3.1項 |
+| `S9_all_tests_holm_35.csv` | 本文と表で報告した35件の検定のp値と，Holm法による補正後のp値 | 5章の限界(2) |
+
+# 分析スクリプト（analysis/）
+
+`analysis/reproduce_all.py` は，論文に載せた全ての数値（類型化，評価の信頼性，4分析，他者参照の要素を含まない評価による確認，記述量の確認，補足資料）を1本で再計算するPythonスクリプトである（乱数シード固定）．入力となる学習履歴データ，児童の振り返り記述，LLMの評定結果は，個人の特定を避けるため公開していない．スクリプト中の入力ファイル名は，著者の環境での名称を一般的な名称に置き換えている．
+
+---
+
 # 倫理・データ取り扱い
 
 - 児童IDはすべて仮名加工済み（児童1〜児童28）．
@@ -398,7 +422,7 @@ def aggregate_across_models(judgments_3models):
 
 - Biggs, J. B., & Collis, K. F. (1982). *Evaluating the Quality of Learning: The SOLO Taxonomy (Structure of the Observed Learning Outcomes)*. New York: Academic Press.
 - Wang, X., Wei, J., Schuurmans, D., Le, Q., Chi, E. H., Narang, S., Chowdhery, A., & Zhou, D. (2023). Self-Consistency Improves Chain of Thought Reasoning in Language Models. *ICLR 2023*.
-- Verga, P., Hofstatter, S., Althammer, S., et al. (2024). Replacing Judges with Juries: Evaluating LLM Generations with a Panel of Diverse Models. *arXiv:2404.18796*.
+- Verga, P., Hofstätter, S., Althammer, S., et al. (2024). Replacing Judges with Juries: Evaluating LLM Generations with a Panel of Diverse Models. *arXiv:2404.18796*.
 - Gilardi, F., Alizadeh, M., & Kubli, M. (2023). ChatGPT outperforms crowd workers for text-annotation tasks. *PNAS*, 120(30), e2305016120.
 - Misiejuk, K., Kaliisa, R., & Scianna, J. (2024). Augmenting assessment with AI coding of online student discourse: A question of reliability. *Computers and Education: Artificial Intelligence*.
 - Zheng, L., Chiang, W.-L., Sheng, Y., et al. (2023). Judging LLM-as-a-Judge with MT-Bench and Chatbot Arena. *NeurIPS 36*, 46595–46623.
@@ -408,4 +432,4 @@ def aggregate_across_models(judgments_3models):
 
 # ライセンス・引用
 
-本ドキュメントの公開部分（プロンプト・設定値・集約コード）は再現研究目的での自由な利用を認める．本資料を利用した研究では，対応論文（本掲載誌掲載）を引用されたい．
+本リポジトリの公開部分（プロンプト・設定値・集約コード・分析スクリプト・補足資料）は再現研究目的での自由な利用を認める．本資料を利用した研究では，対応論文（本掲載誌掲載）を引用されたい．
