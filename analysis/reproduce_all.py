@@ -62,10 +62,10 @@ NUMBER_TABLE = HERE / "数値確定表.md"
 SEED = 20261017
 
 FEATS = ["view_count", "view_duration", "view_mean_duration", "view_breadth", "view_depth", "view_gini"]
-FEATS_JP = ["閲覧回数", "閲覧時間", "平均閲覧時間/回", "参照の広さ", "参照の深さ", "参照の集中度"]
-GROUP_MAP = {"高頻度探索型": "広範・高頻度群", "バランス型": "広範・中頻度群", "選択的熟考型": "限定・長時間群"}
-OLD_NAME = {"広範・高頻度群": "網羅的探索群", "広範・中頻度群": "均等群", "限定・長時間群": "局所滞留群"}
-ORDER = ["広範・高頻度群", "広範・中頻度群", "限定・長時間群"]
+FEATS_JP = ["閲覧回数", "閲覧時間", "平均閲覧時間", "参照人数", "反復回数", "参照の偏り"]
+GROUP_MAP = {"高頻度探索型": "広範・反復群", "バランス型": "広範群", "選択的熟考型": "限定群"}
+OLD_NAME = {"広範・反復群": "網羅的探索群", "広範群": "均等群", "限定群": "局所滞留群"}
+ORDER = ["広範・反復群", "広範群", "限定群"]
 R4 = {"S": 4, "A": 3, "B": 2, "C": 1}
 R3 = {"A": 3, "B": 2, "C": 1}
 INV4 = {4: "S", 3: "A", 2: "B", 1: "C"}
@@ -83,7 +83,7 @@ V4 = {  # 原稿v4（投稿版）の数値。旧→新の対照に使う
     "T13_hi": "W = 4.0, p = .343, r = .387",
     "T13_mid": "W = 10.0, p = .008, r = .629",
     "T13_lim": "W = 0.0, p = .109, r = .802",
-    "T14": "参照の広さ +0.844 ほか6係数（L2ロジスティック回帰）",
+    "T14": "参照人数 +0.844 ほか6係数（L2ロジスティック回帰）",
     "abs_climax": "at the climax ... 67% vs 17%/25% (χ²(2) = 5.67, p = .059, V = .450)",
     "abs_within": "significant within-group deepening only here (Δ = +0.50, p = .008)",
     "s422": "クライマックス場面（p9）で単元目標を達成した児童は14名（50.0%）",
@@ -487,7 +487,7 @@ def sec_T2(c, S):
         diff = (M[a] - M[b]).abs()
         rows.append(dict(指標=j, 一致数=int((diff < 1e-6).sum()), 児童数=len(M), 最大差=diff.max()))
     g27 = (M["r_gini27"] - M["view_gini"]).abs()
-    rows.append(dict(指標="（参考）参照の集中度：分母27固定で算出した場合", 一致数=int((g27 < 1e-6).sum()), 児童数=len(M), 最大差=g27.max()))
+    rows.append(dict(指標="（参考）参照の偏り：分母27固定で算出した場合", 一致数=int((g27 < 1e-6).sum()), 児童数=len(M), 最大差=g27.max()))
     chk = pd.DataFrame(rows)
     print(chk.to_string(index=False))
     assert np.allclose(M.r_gini, M.r_gini_mad)
@@ -508,10 +508,10 @@ def sec_T2(c, S):
          "V_i = 児童iの閲覧操作（他児童のワークシート）の記録件数"),
         ("時間", "閲覧時間", "展開部の他児童のワークシートの閲覧に費やした総時間（秒）",
          "T_i = Σ（各閲覧操作の継続秒数）"),
-        ("時間", "平均閲覧時間/回", "閲覧1回あたりの平均時間（秒）", "T_i / V_i"),
-        ("分布", "参照の広さ", "閲覧した異なる児童の数（最大27名）", "|U_i|（U_i：児童iが1回以上閲覧した他児童の集合）"),
-        ("分布", "参照の深さ", "同一の他児童に対する平均閲覧回数", "V_i / |U_i|"),
-        ("分布", "参照の集中度", "閲覧した他児童（U_i）の間での閲覧回数の偏り（ジニ係数）．0は閲覧した他児童を同じ回数ずつ閲覧，"
+        ("時間", "平均閲覧時間", "閲覧1回あたりの平均時間（秒）", "T_i / V_i"),
+        ("分布", "参照人数", "閲覧した異なる児童の数（最大27名）", "|U_i|（U_i：児童iが1回以上閲覧した他児童の集合）"),
+        ("分布", "反復回数", "同一の他児童に対する平均閲覧回数", "V_i / |U_i|"),
+        ("分布", "参照の偏り", "閲覧した他児童（U_i）の間での閲覧回数の偏り（ジニ係数）．0は閲覧した他児童を同じ回数ずつ閲覧，"
          "値が大きいほど特定の児童に閲覧が集中．閲覧しなかった児童は含めない",
          "G_i = Σ_{j∈U_i} Σ_{k∈U_i} |x_ij − x_ik| / (2|U_i|² x̄_i)（x_ij：児童iが児童jを閲覧した回数，x̄_i：U_i内の平均）"),
     ]
@@ -671,7 +671,7 @@ def sec_T7(c, S, B, fast):
     F4 = ["view_count", "view_duration", "view_breadth", "view_gini"]
     X4 = StandardScaler().fit_transform(c[F4])
     sil4 = {k: silhouette_score(X4, km(X4, k, SEED).labels_) for k in range(2, 7)}
-    add("導出2指標（平均閲覧時間/回・参照の深さ）を除いた4指標", km(X4, 3, SEED).labels_,
+    add("導出2指標（平均閲覧時間・反復回数）を除いた4指標", km(X4, 3, SEED).labels_,
         f"シルエット最大k={max(sil4, key=sil4.get)}（k=3 {sil4[3]:.3f}、k=4 {sil4[4]:.3f}）", sil4[3])
     pca = PCA().fit(X)
     cum = np.cumsum(pca.explained_variance_ratio_)
@@ -690,7 +690,7 @@ def sec_T7(c, S, B, fast):
     X27 = StandardScaler().fit_transform(c27[FEATS])
     lab27 = km(X27, 3, SEED).labels_
     sil27 = {k: silhouette_score(X27, km(X27, k, SEED).labels_) for k in range(2, 7)}
-    add("参照の集中度を分母27固定で算出した6指標", lab27, f"シルエット最大k={max(sil27, key=sil27.get)}（k=3 {sil27[3]:.3f}）", sil27[3])
+    add("参照の偏りを分母27固定で算出した6指標", lab27, f"シルエット最大k={max(sil27, key=sil27.get)}（k=3 {sil27[3]:.3f}）", sil27[3])
     # 補足（本文には出さない）
     add("（補足）群平均法（6指標）", AgglomerativeClustering(n_clusters=3, linkage="average").fit_predict(X))
     add("（補足）完全連結法（6指標）", AgglomerativeClustering(n_clusters=3, linkage="complete").fit_predict(X))
@@ -702,7 +702,7 @@ def sec_T7(c, S, B, fast):
     Xlog = StandardScaler().fit_transform(np.column_stack([np.log(c[f]) if f != "view_gini" else c[f] for f in FEATS]))
     add("（補足）6指標の対数変換", km(Xlog, 3, SEED).labels_)
     F5 = ["view_count", "view_duration", "view_mean_duration", "view_breadth", "view_depth"]
-    add("（補足）参照の集中度を除いた5指標", km(StandardScaler().fit_transform(c[F5]), 3, SEED).labels_)
+    add("（補足）参照の偏りを除いた5指標", km(StandardScaler().fit_transform(c[F5]), 3, SEED).labels_)
     SE = pd.DataFrame(sens)
     print(SE.round(3).to_string(index=False))
     SE.to_csv(OUT / "03_T7_感度分析_ARI.csv", index=False, encoding="utf-8-sig")
@@ -861,14 +861,14 @@ def sec_T11(child_total, pg, c, S, B, rng):
     # 変化量の群間比較の補強
     chg = {g: a.loc[a.group == g, "change"].to_numpy() for g in ORDER}
     boot = {}
-    for g1, g2 in [("広範・中頻度群", "広範・高頻度群"), ("広範・中頻度群", "限定・長時間群"), ("限定・長時間群", "広範・高頻度群")]:
+    for g1, g2 in [("広範群", "広範・反復群"), ("広範群", "限定群"), ("限定群", "広範・反復群")]:
         bs = [rng.choice(chg[g1], len(chg[g1])).mean() - rng.choice(chg[g2], len(chg[g2])).mean() for _ in range(B * 10)]
         boot[(g1, g2)] = (chg[g1].mean() - chg[g2].mean(), *np.percentile(bs, [2.5, 97.5]))
     dd = pg.merge(c[["child", "group"]], on="child").copy()
     dd["half"] = (dd.page >= 7).astype(int)
     dd["y"] = dd.total
-    m1 = smf.mixedlm("y ~ C(group, Treatment('広範・中頻度群')) * half", dd, groups=dd["child"]).fit(reml=False)
-    m0 = smf.mixedlm("y ~ C(group, Treatment('広範・中頻度群')) + half", dd, groups=dd["child"]).fit(reml=False)
+    m1 = smf.mixedlm("y ~ C(group, Treatment('広範群')) * half", dd, groups=dd["child"]).fit(reml=False)
+    m0 = smf.mixedlm("y ~ C(group, Treatment('広範群')) + half", dd, groups=dd["child"]).fit(reml=False)
     lrt = 2 * (m1.llf - m0.llf)
     lmm = dict(chi2=lrt, df=2, p=stats.chi2.sf(lrt, 2))
     # 検出力（ANOVA近似と再標本化KW）
@@ -979,8 +979,8 @@ def sec_T432(pg, c, final_page, S, solo_label):
     labS2 = f"（感度）{solo_label}：最終振り返りが欠損の児童は直前の記述で代替"
     sc, cA, cB = decide(labAB, labS)
     sc2, _, cB2 = decide(labAB, labS2)
-    txt = (f"判定基準（分析前に固定、修正方針§5.2）：S1＝要素1・2判定と中立SOLOの両方で、最終振り返りの到達率が広範・中頻度群で最高"
-           f"かつCramér's V ≥ .30／S2＝一方のみ成立、または方向は一致するがV < .30／S3＝両指標で広範・中頻度群最高が成り立たない。p値は判定に用いない。\n"
+    txt = (f"判定基準（分析前に固定、修正方針§5.2）：S1＝要素1・2判定と中立SOLOの両方で、最終振り返りの到達率が広範群で最高"
+           f"かつCramér's V ≥ .30／S2＝一方のみ成立、または方向は一致するがV < .30／S3＝両指標で広範群最高が成り立たない。p値は判定に用いない。\n"
            f"要素1・2：到達率 {[round(x, 3) for x in cA['rates']]}，中頻度最高={cA['mid_highest']}，V={cA['V']:.3f} → 成立={cA['met']}\n"
            f"SOLO（{solo_label}）：到達率 {[round(x, 3) if not isnan(x) else None for x in cB['rates']]}，中頻度最高={cB['mid_highest']}，"
            f"V={cB['V'] if isnan(cB['V']) else round(cB['V'], 3)} → 成立={cB['met']}\n"
@@ -1045,8 +1045,8 @@ def sec_T433(pg, child_total, raw, c, S):
     L.to_csv(OUT / "10_T433_最終振り返り一覧_引用候補.csv", index=False, encoding="utf-8-sig")
     ach = fin[fin.achieved == 1]
     S["T433"] = dict(T=T, n_ach=len(ach), eA_all_A=int((ach.eA == 3).sum()), eB_all_A=int((ach.eB == 3).sum()),
-                     eC_A=int((ach.eC == 3).sum()), mid_ach=int(((ach.group == "広範・中頻度群")).sum()),
-                     mid_ach_eC_A=int(((ach.group == "広範・中頻度群") & (ach.eC == 3)).sum()), fin=fin)
+                     eC_A=int((ach.eC == 3).sum()), mid_ach=int(((ach.group == "広範群")).sum()),
+                     mid_ach_eC_A=int(((ach.group == "広範群") & (ach.eC == 3)).sum()), fin=fin)
 
 
 def sec_length(pg, child_total, child_solo, c, S, B, rng):
@@ -1097,7 +1097,7 @@ def sec_length(pg, child_total, child_solo, c, S, B, rng):
         cnt += chi_sum(fin, pl) >= obs - 1e-12
     p_strat = (cnt + 1) / (nperm + 1)
     # ロジスティック回帰（中頻度群ダミー＋文字数z）と順序ロジット（最終振り返り段階）
-    fin["mid"] = (fin.group == "広範・中頻度群").astype(int)
+    fin["mid"] = (fin.group == "広範群").astype(int)
     fin["z"] = (fin.nchar - fin.nchar.mean()) / fin.nchar.std(ddof=1)
     lr = {}
     try:
@@ -1130,8 +1130,8 @@ def sec_length(pg, child_total, child_solo, c, S, B, rng):
         fh.write("相関: " + json.dumps({k: round(v, 3) if isinstance(v, float) else v for k, v in cor.items()}, ensure_ascii=False) + "\n")
         fh.write(ST.to_string(index=False) + "\n")
         fh.write(f"層化順列検定（文字数の中央値{med}字で2層に分け層内で群ラベルを並べ替え、統計量＝層別χ²の和、{nperm}回）：p = {p_strat:.4f}\n")
-        fh.write("ロジスティック回帰（到達 ~ 広範・中頻度群ダミー [+ 文字数z]）: " + json.dumps({k: round(v, 4) if isinstance(v, float) else v for k, v in lr.items()}, ensure_ascii=False) + "\n")
-        fh.write("順序ロジット（最終振り返り段階1〜4 ~ 広範・中頻度群ダミー [+ 文字数z]）: " + json.dumps({k: round(v, 4) if isinstance(v, float) else v for k, v in om.items()}, ensure_ascii=False) + "\n")
+        fh.write("ロジスティック回帰（到達 ~ 広範群ダミー [+ 文字数z]）: " + json.dumps({k: round(v, 4) if isinstance(v, float) else v for k, v in lr.items()}, ensure_ascii=False) + "\n")
+        fh.write("順序ロジット（最終振り返り段階1〜4 ~ 広範群ダミー [+ 文字数z]）: " + json.dumps({k: round(v, 4) if isinstance(v, float) else v for k, v in om.items()}, ensure_ascii=False) + "\n")
     S["LEN"] = dict(rows=rows, kw=kwn, ach_n=ach_n, cor=cor, ST=ST, p_strat=p_strat, med=med, lr=lr, om=om, nperm=nperm)
 
 
@@ -1165,7 +1165,7 @@ def sec_supp(c, child_total, S, B, rng):
     k4 = a4.groupby("k4").agg(n=("child", "size"), 原群=("group", lambda s: "、".join(f"{k}{v}" for k, v in s.value_counts().items())),
                               最終振り返り到達率=("ach_last", "mean"), p9到達率=("ach_p9", "mean"), 変化量=("change", "mean"),
                               閲覧回数=("view_count", "mean"), 閲覧時間=("view_duration", "mean"), 平均閲覧時間=("view_mean_duration", "mean"),
-                              参照の広さ=("view_breadth", "mean"), 参照の深さ=("view_depth", "mean"), 参照の集中度=("view_gini", "mean"))
+                              参照人数=("view_breadth", "mean"), 反復回数=("view_depth", "mean"), 参照の偏り=("view_gini", "mean"))
     print(k4.round(3).to_string())
     k4.to_csv(OUT / "12_補足_k4解の内訳.csv", encoding="utf-8-sig")
     S["SUPP"] = dict(LT=LT, k4=k4, nboot=len(Bc))
@@ -1232,7 +1232,7 @@ def write_number_table(S):
     wil = T11["wil"]
     r12 = T12["res"]
     keep = T432["keep"]
-    gshort = {"広範・高頻度群": "広範・高頻度群", "広範・中頻度群": "広範・中頻度群", "限定・長時間群": "限定・長時間群"}
+    gshort = {"広範・反復群": "広範・反復群", "広範群": "広範群", "限定群": "限定群"}
 
     def pc(r, i):
         a, n = r["counts"][i]
@@ -1259,7 +1259,7 @@ def write_number_table(S):
     w(f"- SOLOの出所：**{S['solo_desc']}**" + ("。**暫定値**（3LLM再評価の承認後に `--solo reeval` で再実行し、SOLOを含む箇所〔表10・4.3.2表のSOLO行・判定・4.2.3の文・記述量の相関〕を差し替える）" if provisional else ""))
     if S["VER"].get("fast"):
         w("- **注意：--fast（再標本化回数1/10）で生成した動作確認用。数値は確定値ではない。**")
-    w("- 群名：広範・高頻度群（旧：網羅的探索群），広範・中頻度群（旧：均等群），限定・長時間群（旧：局所滞留群）")
+    w("- 群名：広範・反復群（旧：網羅的探索群），広範群（旧：均等群），限定群（旧：局所滞留群）")
     w("- 表記：原稿の句読点（，．）に合わせた。表・文中の統計記号は *p*, *H*, *M*, *SD*, *n*, *W*, *r*, *V*, *k* をイタリック，ε², ρ, κ, χ² は立体。")
     w("- 本ファイルは `reproduce_all.py` の実行ごとに上書きされる。手で編集した内容は残らないので，転記用の控えは別ファイルに取ること。")
     w("")
@@ -1273,20 +1273,20 @@ def write_number_table(S):
     chk = S["T2"]["check"]
     w(f"注：展開部（p4〜p9，{info['date_min']}〜{info['date_max']}のログ）で他の児童のワークシートを開いた操作{info['n_view_peer']:,}件"
       f"（閲覧操作{info['n_view_all']:,}件から教師のワークシートの閲覧{info['n_view_teacher']}件を除く）から算出した．"
-      f"参照の広さが27名に達した児童は{info['breadth_27']}名であった．")
+      f"参照人数が27名に達した児童は{info['breadth_27']}名であった．")
     w("")
     chk_txt = "，".join("{} {}/{}".format(x["指標"], x["一致数"], x["児童数"]) for x in chk[:6])
     w(f"- 再計算の確認：生ログ（`分析データ/logs_with_duration_v2.xlsx`）から6指標を再計算し，`clustering_results.csv` と"
       f"{chk_txt} で一致した（差 < 10⁻⁶）。"
       f"アーカイブのCSV版ログからの再計算も同一（{info['xlsx_csv_identical']}）。")
-    w(f"- 参照の集中度を「分母27固定（未閲覧の児童を0回として27名で算出）」で計算すると一致は{chk[6]['一致数']}/28（参照の広さが27の児童のみ一致）。"
+    w(f"- 参照の偏りを「分母27固定（未閲覧の児童を0回として27名で算出）」で計算すると一致は{chk[6]['一致数']}/28（参照人数が27の児童のみ一致）。"
       f"→ 本文の定義を実際の算出（閲覧した児童の間の偏り）に改める（決定6）。")
     w("- 閲覧時間はログに付与済みの継続秒数（最大60秒，最小1秒）を合計した。原稿の「60秒超の操作空白で閲覧中断とみなす」はこの列の作成段階の処理で，本スクリプトでは再現していない（列の最大値が60秒であることのみ確認）。")
     w("")
     w("**3.3.1の文（案）**")
     w("")
-    w(f"> 参照の集中度は，児童が閲覧した他者の間での閲覧回数の偏りを表すジニ係数であり，閲覧しなかった他者は算出に含めない．"
-      f"なお，閲覧しなかった他者を0回として自分以外の27名で算出したジニ係数を用いても，*k* = 3の解は同一であった（ARI = {fz(SE.loc['参照の集中度を分母27固定で算出した6指標', 'ARI'], 2)}）．")
+    w(f"> 参照の偏りは，児童が閲覧した他者の間での閲覧回数の偏りを表すジニ係数であり，閲覧しなかった他者は算出に含めない．"
+      f"なお，閲覧しなかった他者を0回として自分以外の27名で算出したジニ係数を用いても，*k* = 3の解は同一であった（ARI = {fz(SE.loc['参照の偏りを分母27固定で算出した6指標', 'ARI'], 2)}）．")
     w("")
 
     # ---------------- 表6
@@ -1324,8 +1324,8 @@ def write_number_table(S):
         rows.append([g, int(r.n), fz(r.boot_mean, 2), f"{r.boot_lt05 * 100:.1f}%", fz(r.sub_mean, 2), f"{r.sub_lt05 * 100:.1f}%"])
     w(md_table(["群", "*n*", "ブートストラップ：平均Jaccard", "Jaccard < .5の割合", f"80%部分標本（{T7['stab']['n_sub']}名）：平均Jaccard", "Jaccard < .5の割合"], rows))
     w("")
-    sens_main = ["導出2指標（平均閲覧時間/回・参照の深さ）を除いた4指標", [x for x in SE.index if x.startswith("主成分得点（累積寄与率80%")][0],
-                 "Ward法（6指標）", "参照の集中度を分母27固定で算出した6指標"]
+    sens_main = ["導出2指標（平均閲覧時間・反復回数）を除いた4指標", [x for x in SE.index if x.startswith("主成分得点（累積寄与率80%")][0],
+                 "Ward法（6指標）", "参照の偏りを分母27固定で算出した6指標"]
     stxt = "，".join(f"{n_.replace('（6指標）', '')} {fz(SE.loc[n_, 'ARI'], 2)}" for n_ in sens_main)
     w(f"注：Jaccard係数は群ごとに，元の群と再標本での最も重なる群との一致度（Hennig, 2007）．目安は .75以上で安定，.5未満で解消．"
       f"感度分析（*k* = 3の解と原解のARI）：{stxt}．")
@@ -1362,7 +1362,7 @@ def write_number_table(S):
     w(f"> クラスタ数は，*k* = 2〜6のそれぞれについてシルエット係数，Calinski–Harabasz指標，Davies–Bouldin指標およびGap統計量を算出して検討した．"
       f"k-means法の初期値依存を避けるため，初期値を変えた複数の試行から最良の解を採用した．各群の安定性は，復元抽出による再標本化（{st['B']:,}回）と"
       f"80%部分標本（{st['n_sub']}名，{st['B']:,}回）で得た群ごとのJaccard係数の平均により評価した [Hennig 2007]．"
-      f"6指標には他の指標から算出される2指標（平均閲覧時間/回，参照の深さ）が含まれるため，この2指標を除いた4指標による再分析を感度分析として行った．")
+      f"6指標には他の指標から算出される2指標（平均閲覧時間，反復回数）が含まれるため，この2指標を除いた4指標による再分析を感度分析として行った．")
     w("")
     w("**4.1の文（案）**")
     w("")
@@ -1392,7 +1392,7 @@ def write_number_table(S):
     sents.append(s_)
     a, b = T7["pair"]
     sents.append(f"指標間の順位相関は{a}と{b}で最大（ρ = {fz(T7['rho_max'])}）であり，両指標のVIFはそれぞれ{T7['vif'][a]:,.0f}，{T7['vif'][b]:,.0f}であった．"
-                 f"参照の広さが多くの児童で上限（27名）に近いため，参照の深さ（閲覧回数÷参照の広さ）が閲覧回数とほぼ同じ情報になっている．")
+                 f"参照人数が多くの児童で上限（27名）に近いため，反復回数（閲覧回数÷参照人数）が閲覧回数とほぼ同じ情報になっている．")
     sents.append("なお，6指標は類型化の入力変数であるため群間の検定は行わず，各群の特徴を記述統計で示す（表6）．")
     w("> " + "".join(sents))
     w("")
@@ -1514,10 +1514,10 @@ def write_number_table(S):
     w("")
     w(f"> 前半（p4〜p6）から後半（p7〜p9）への変化をWilcoxon符号順位検定（正確検定）で検討した（表11）．"
       f"学級全体では後半の値が高く（Δ = {fs(al['delta_M'])}，*W* = {fn(al['W'], 1)}，*p* {fpe(al['p_exact'])}，*r* = {fz(al['r'], 2)}），"
-      f"群別では広範・中頻度群で有意であった（Δ = {fs(mid['delta_M'])}，*W* = {fn(mid['W'], 1)}，*p* {fpe(mid['p_exact'])}，*r* = {fz(mid['r'], 2)}）．"
-      f"一方，限定・長時間群の変化量（Δ = {fs(lim['delta_M'])}）は広範・中頻度群と同程度であり，変化量に3群間の有意差は認められなかった"
+      f"群別では広範群で有意であった（Δ = {fs(mid['delta_M'])}，*W* = {fn(mid['W'], 1)}，*p* {fpe(mid['p_exact'])}，*r* = {fz(mid['r'], 2)}）．"
+      f"一方，限定群の変化量（Δ = {fs(lim['delta_M'])}）は広範群と同程度であり，変化量に3群間の有意差は認められなかった"
       f"（*H*(2) = {fn(kw['change']['H'])}，*p* = {fp(kw['change']['p'])}）．群×時期の交互作用も認められなかった（線形混合モデル，χ²(2) = {fn(lm['chi2'])}，*p* = {fp(lm['p'])}）．"
-      f"広範・高頻度群と限定・長時間群では前後で差のあった児童がそれぞれ{hi['n_nonzero']}名，{lim['n_nonzero']}名であり，正確検定で得られる最小の *p* 値は{fp(hi['p_min'])}，{fp(lim['p_min'])}である．"
+      f"広範・反復群と限定群では前後で差のあった児童がそれぞれ{hi['n_nonzero']}名，{lim['n_nonzero']}名であり，正確検定で得られる最小の *p* 値は{fp(hi['p_min'])}，{fp(lim['p_min'])}である．"
       f"したがって，群内検定の有意・非有意の違いは群の大きさを反映しており，前半から後半への深まりは学級全体に共通する傾向と解釈した．")
     w("")
 
@@ -1544,14 +1544,14 @@ def write_number_table(S):
     top = {c_: ORDER[int(np.argmax(r12[c_]["rates"]))] for c_ in lab5}
     mid_top = [lab5[c_][1:] for c_ in lab5 if r12[c_]["rates"][1] > max(r12[c_]["rates"][0], r12[c_]["rates"][2])]
     other_p = [r12[c_]["p_ffh"] for c_ in lab5]
-    w(f"> 最終振り返りで単元目標を達成した児童の割合は，広範・中頻度群が{rate_txt(r2, 1)}であり，広範・高頻度群（{rate_c(r2, 0)}）と限定・長時間群（{rate_c(r2, 2)}）より高い傾向を示した"
+    w(f"> 最終振り返りで単元目標を達成した児童の割合は，広範群が{rate_txt(r2, 1)}であり，広範・反復群（{rate_c(r2, 0)}）と限定群（{rate_c(r2, 2)}）より高い傾向を示した"
       f"（Fisher–Freeman–Halton検定，*p* = {fp(r2['p_ffh'])}，Cramér's *V* = {fz(r2['V'], 2)}；表12）．"
-      f"第6場面（p9）に記述がある{r9['n']}名に限ると，達成率は広範・中頻度群{rate_txt(r9, 1)}，広範・高頻度群{rate_txt(r9, 0)}，限定・長時間群{rate_txt(r9, 2)}であった（*p* = {fp(r9['p_ffh'])}，*V* = {fz(r9['V'], 2)}）．"
-      f"一方，達成の定義を変えると群の順序は一致しなかった．広範・中頻度群の達成率が最も高かったのは最終振り返りのほか{'と'.join(mid_top) if mid_top else 'なし'}の定義であり，"
-      f"1回以上A以上では広範・高頻度群が{rate_txt(r12['ach_any'], 0)}で最も高かった．最終振り返り以外の定義では，いずれも群間に有意な差は認められなかった（*p* = {fp(min(other_p))}〜{fp(max(other_p))}）．"
+      f"第6場面（p9）に記述がある{r9['n']}名に限ると，達成率は広範群{rate_txt(r9, 1)}，広範・反復群{rate_txt(r9, 0)}，限定群{rate_txt(r9, 2)}であった（*p* = {fp(r9['p_ffh'])}，*V* = {fz(r9['V'], 2)}）．"
+      f"一方，達成の定義を変えると群の順序は一致しなかった．広範群の達成率が最も高かったのは最終振り返りのほか{'と'.join(mid_top) if mid_top else 'なし'}の定義であり，"
+      f"1回以上A以上では広範・反復群が{rate_txt(r12['ach_any'], 0)}で最も高かった．最終振り返り以外の定義では，いずれも群間に有意な差は認められなかった（*p* = {fp(min(other_p))}〜{fp(max(other_p))}）．"
       f"最終振り返りへの注目は集計後に行った事後的なものであり，この傾向は探索的な所見として扱う．")
     w("")
-    w(f"- 参考：各定義で達成率が最も高かった群：" + "，".join(f"{lab5[c_]} {top[c_]}" for c_ in lab5) + f"。広範・中頻度群が最高の定義は②に加えて{'・'.join(mids) if mids else 'なし'}。"
+    w(f"- 参考：各定義で達成率が最も高かった群：" + "，".join(f"{lab5[c_]} {top[c_]}" for c_ in lab5) + f"。広範群が最高の定義は②に加えて{'・'.join(mids) if mids else 'なし'}。"
       f"原稿4.3.1の「他の達成定義でも均等群の優位が一貫」は削除する。")
     w("")
 
@@ -1587,9 +1587,9 @@ def write_number_table(S):
     cA, cB = T432["cA"], T432["cB"]
     w(f"**事前に固定した判定基準による判定：{T432['scenario']}**" + ("（暫定：SOLOが中立基準の3LLM再評価になった時点で確定）" if provisional else ""))
     w("")
-    w(f"- 基準：S1＝要素1・2判定と中立SOLOの両方で，最終振り返りの到達率が広範・中頻度群で最高かつCramér's *V* ≥ .30。S2＝一方のみ成立，または方向は一致するが *V* < .30。S3＝両指標で広範・中頻度群が最高でない。*p* は判定に用いない（修正方針§5.2）。")
-    w(f"- 要素1・2：広範・中頻度群が最高＝{'○' if cA['mid_highest'] else '×'}，*V* = {fz(cA['V'], 2)}（{'≥' if cA['V_ok'] else '<'} .30）→ {'成立' if cA['met'] else '不成立'}")
-    w(f"- {sl}：広範・中頻度群が最高＝{'○' if cB['mid_highest'] else '×'}，*V* = {fz(cB['V'], 2)}（{'≥' if cB['V_ok'] else '<'} .30）→ {'成立' if cB['met'] else '不成立'}"
+    w(f"- 基準：S1＝要素1・2判定と中立SOLOの両方で，最終振り返りの到達率が広範群で最高かつCramér's *V* ≥ .30。S2＝一方のみ成立，または方向は一致するが *V* < .30。S3＝両指標で広範群が最高でない。*p* は判定に用いない（修正方針§5.2）。")
+    w(f"- 要素1・2：広範群が最高＝{'○' if cA['mid_highest'] else '×'}，*V* = {fz(cA['V'], 2)}（{'≥' if cA['V_ok'] else '<'} .30）→ {'成立' if cA['met'] else '不成立'}")
+    w(f"- {sl}：広範群が最高＝{'○' if cB['mid_highest'] else '×'}，*V* = {fz(cB['V'], 2)}（{'≥' if cB['V_ok'] else '<'} .30）→ {'成立' if cB['met'] else '不成立'}"
       f"（SOLO欠損を直前の記述で代替した場合の判定も{T432['scenario_alt']}）")
     eAB, eC_, eS = keep["要素1・2のみ（規則版）"], keep["要素3のみ（参考）"], keep[T432["labS"]]
     w("")
@@ -1598,17 +1598,17 @@ def write_number_table(S):
     w("> 要素3（他者参照を踏まえた自己の解釈の統合）は他者参照に関わる内容を評価するため，他者参照行動の類型との対応を検討すると，評価の定義そのものが対応を生む可能性がある．"
       "そこで，他者参照の要素を含まない評価として，要素1・2のみから再構成した判定（両要素がA→A，いずれかがC→C，それ以外→B）とSOLOタクソノミー（関係構造以上を到達とする）を用いて，"
       "平均の比較（①），最終振り返りでの到達（②）および前半から後半への変化（③）を再分析した．"
-      "対応が維持されたとみなす基準は分析前に定め，両指標で最終振り返りの到達率が広範・中頻度群で最も高く，かつCramér's *V* が .30以上である場合とした．")
+      "対応が維持されたとみなす基準は分析前に定め，両指標で最終振り返りの到達率が広範群で最も高く，かつCramér's *V* が .30以上である場合とした．")
     w("")
     w("**4.3.2の文（案）**")
     w("")
-    dchg = eAB["w"]["広範・中頻度群"]
+    dchg = eAB["w"]["広範群"]
     same = eAB["r2"]["counts"] == keep["原総合（要素1〜3）"]["r2"]["counts"]
     w(f"> 要素1・2のみで再構成した判定でも，最終振り返りでの到達率は{rates3(eAB['r2'])}であり"
       + ("，原指標と同一であった" if same else "") +
       f"（*p* = {fp(eAB['r2']['p_ffh'])}，*V* = {fz(eAB['r2']['V'], 2)}；表X）．"
-      f"前半から後半への変化も，広範・中頻度群（Δ = {fs(dchg['delta_M'])}，*p* {fpe(dchg['p_exact'])}）と学級全体（Δ = {fs(eAB['wa']['delta_M'])}，*p* {fpe(eAB['wa']['p_exact'])}）で原指標とほぼ同じであった．"
-      + (f"SOLOタクソノミーでも，最終振り返りで関係構造以上に到達した児童の割合は広範・中頻度群で最も高かった（{rates3(eS['r2'], False)}；*p* = {fp(eS['r2']['p_ffh'])}，*V* = {fz(eS['r2']['V'], 2)}）．"
+      f"前半から後半への変化も，広範群（Δ = {fs(dchg['delta_M'])}，*p* {fpe(dchg['p_exact'])}）と学級全体（Δ = {fs(eAB['wa']['delta_M'])}，*p* {fpe(eAB['wa']['p_exact'])}）で原指標とほぼ同じであった．"
+      + (f"SOLOタクソノミーでも，最終振り返りで関係構造以上に到達した児童の割合は広範群で最も高かった（{rates3(eS['r2'], False)}；*p* = {fp(eS['r2']['p_ffh'])}，*V* = {fz(eS['r2']['V'], 2)}）．"
          if cB["mid_highest"] else
          f"SOLOタクソノミーでは，最終振り返りで関係構造以上に到達した児童の割合が最も高かったのは{ORDER[int(np.nanargmax(eS['r2']['rates']))]}であった（{rates3(eS['r2'], False)}；*p* = {fp(eS['r2']['p_ffh'])}，*V* = {fz(eS['r2']['V'], 2)}）．") +
       f"一方，要素3のみで判定すると，群との対応は{'最も弱かった' if (eC_['r2']['V'] <= min(eAB['r2']['V'], eS['r2']['V'] if not isnan(eS['r2']['V']) else 9)) else '弱かった'}（{rates3(eC_['r2'], False)}；*p* = {fp(eC_['r2']['p_ffh'])}，*V* = {fz(eC_['r2']['V'], 2)}）．"
@@ -1636,10 +1636,10 @@ def write_number_table(S):
     nonach = T3[(T3["到達"].str.startswith("B")) & (T3["群"] == "計")].iloc[0]
     ab_txt = "全員がA" if (T433["eA_all_A"] == T433["n_ach"] and T433["eB_all_A"] == T433["n_ach"]) else "Aがそれぞれ{}名，{}名".format(T433["eA_all_A"], T433["eB_all_A"])
     w(f"> 最終振り返りでA以上に到達した{T433['n_ach']}名では，要素1（本文根拠）と要素2（心情・情景の読み取り）は{ab_txt}であり，"
-      f"要素3（他者参照を踏まえた解釈の統合）がAであったのは{T433['eC_A']}名であった（広範・中頻度群の到達者{T433['mid_ach']}名では{T433['mid_ach_eC_A']}名）．"
+      f"要素3（他者参照を踏まえた解釈の統合）がAであったのは{T433['eC_A']}名であった（広範群の到達者{T433['mid_ach']}名では{T433['mid_ach_eC_A']}名）．"
       f"未到達の{int(nonach['n'])}名では，要素2がAの児童はおらず（A/B/C = {nonach['要素2']}），要素1はA/B/C = {nonach['要素1']}であった．")
     w("")
-    w(f"- 原稿4.3.2「達成12名に①②③の3要素が共通」は誤り：③（要素3）がAは広範・中頻度群の到達者{T433['mid_ach']}名中{T433['mid_ach_eC_A']}名。")
+    w(f"- 原稿4.3.2「達成12名に①②③の3要素が共通」は誤り：③（要素3）がAは広範群の到達者{T433['mid_ach']}名中{T433['mid_ach_eC_A']}名。")
     w("")
 
     # ---------------- 記述量
@@ -1659,15 +1659,15 @@ def write_number_table(S):
     w(f"- 文字数の中央値（{LEN['med']}字）で層化した到達率：" + "；".join(f"{r['層']}（*n* = {r['n']}）" + "，".join(f"{g} {r[g]}" for g in ORDER) for _, r in ST.iterrows())
       + f"。層内で群ラベルを並べ替えた層化順列検定 *p* = {fp(LEN['p_strat'])}（{LEN['nperm']:,}回）。")
     if "b_mid" in lr:
-        w(f"- ロジスティック回帰（到達 ~ 広範・中頻度群ダミー）：*b* = {fn(lr['b_mid_unadj'])}，*p* = {fp(lr['p_mid_unadj'])} → 文字数（*z*）を加えると *b* = {fn(lr['b_mid'])}，*p* = {fp(lr['p_mid'])}（文字数 *b* = {fn(lr['b_z'])}，*p* = {fp(lr['p_z'])}）。")
+        w(f"- ロジスティック回帰（到達 ~ 広範群ダミー）：*b* = {fn(lr['b_mid_unadj'])}，*p* = {fp(lr['p_mid_unadj'])} → 文字数（*z*）を加えると *b* = {fn(lr['b_mid'])}，*p* = {fp(lr['p_mid'])}（文字数 *b* = {fn(lr['b_z'])}，*p* = {fp(lr['p_z'])}）。")
     if "b_mid" in om:
-        w(f"- 順序ロジット（最終振り返り段階1〜4 ~ 広範・中頻度群ダミー）：*b* = {fn(om['b_mid_unadj'])}，*p* = {fp(om['p_mid_unadj'])} → 文字数を加えると *b* = {fn(om['b_mid'])}，*p* = {fp(om['p_mid'])}。")
+        w(f"- 順序ロジット（最終振り返り段階1〜4 ~ 広範群ダミー）：*b* = {fn(om['b_mid_unadj'])}，*p* = {fp(om['p_mid_unadj'])} → 文字数を加えると *b* = {fn(om['b_mid'])}，*p* = {fp(om['p_mid'])}。")
     w("")
     w("**5章（限界）に書ける文（案）**")
     w("")
-    w(f"> 第一に，最終振り返りの記述量には群による違いがあり（平均で広範・高頻度群{LEN['rows'][0]['文字数_MSD'].split()[0]}字，広範・中頻度群{LEN['rows'][1]['文字数_MSD'].split()[0]}字，限定・長時間群{LEN['rows'][2]['文字数_MSD'].split()[0]}字），"
+    w(f"> 第一に，最終振り返りの記述量には群による違いがあり（平均で広範・反復群{LEN['rows'][0]['文字数_MSD'].split()[0]}字，広範群{LEN['rows'][1]['文字数_MSD'].split()[0]}字，限定群{LEN['rows'][2]['文字数_MSD'].split()[0]}字），"
       f"到達者の記述は未到達者より長かった（{_r(an.loc[1, 'mean'], 0)}字，{_r(an.loc[0, 'mean'], 0)}字）．"
-      f"文字数を共変量に加えると，広範・中頻度群と到達との関連は同じ方向のまま有意ではなくなった．"
+      f"文字数を共変量に加えると，広範群と到達との関連は同じ方向のまま有意ではなくなった．"
       f"記述量の多さは深まりの表れとも評価の交絡とも解釈でき，本研究のデータでは両者を区別できない．")
     w("")
     w(f"> （短縮版）最終振り返りでの到達の群差は記述量の差と重なっており（文字数を統制すると関連は有意でなくなった），記述量が深まりの表れか交絡かは本研究のデータでは区別できない．")
@@ -1685,12 +1685,12 @@ def write_number_table(S):
     w(f"→ 本文から削除し，必要なら1文：「6指標のいずれも単独では到達と明確な関連を示さなかった（|ρ| ≤ {fz(LT['単変量rho'].abs().max(), 2)}）」。")
     w("")
     k4 = S["SUPP"]["k4"]
-    rows = [[i, int(r.n), r["原群"], f"{r['最終振り返り到達率'] * 100:.0f}%", f"{r['p9到達率'] * 100:.0f}%", fs(r["変化量"]), fn(r["閲覧回数"], 1), fn(r["平均閲覧時間"], 1), fn(r["参照の広さ"], 1), fn(r["参照の集中度"], 3)] for i, r in k4.iterrows()]
+    rows = [[i, int(r.n), r["原群"], f"{r['最終振り返り到達率'] * 100:.0f}%", f"{r['p9到達率'] * 100:.0f}%", fs(r["変化量"]), fn(r["閲覧回数"], 1), fn(r["平均閲覧時間"], 1), fn(r["参照人数"], 1), fn(r["参照の偏り"], 3)] for i, r in k4.iterrows()]
     w("**k = 4の解の内訳**")
     w("")
-    w(md_table(["クラスタ", "*n*", "原群", "最終振り返り到達率", "p9到達率", "変化量", "閲覧回数", "平均閲覧時間/回", "参照の広さ", "参照の集中度"], rows))
+    w(md_table(["クラスタ", "*n*", "原群", "最終振り返り到達率", "p9到達率", "変化量", "閲覧回数", "平均閲覧時間", "参照人数", "参照の偏り"], rows))
     w("")
-    w("→ 広範・中頻度群が2分割され，到達率が高い下位群は参照の集中度が高い（偏りのある）側である。「均等な参照」の解釈を主張から外す根拠（群名変更済み）。")
+    w("→ 広範群が2分割され，到達率が高い下位群は参照の偏りが高い（偏りのある）側である。「均等な参照」の解釈を主張から外す根拠（群名変更済み）。")
     w("")
     D = S["HOLM"]
     w(f"**検定の件数と多重性**：本文と4.3.2表で報告する検定は計{len(D)}件（`out/12_補足_全検定一覧_Holm.csv`）。Holm補正後に *p* < .05 となるのは{int((D['Holm補正後p'] < .05).sum())}件："
@@ -1703,8 +1703,8 @@ def write_number_table(S):
     w("")
     rows = []
     rows.append(["表2・3.3.1 ジニ係数の定義", V4["gini_def"], "閲覧した児童の間の偏り（実際の算出）．分母27版は感度分析で同一解（ARI = 1.00）"])
-    rows.append(["表2", "集中度の行なし（5行）", "参照の集中度の行を追加（6行）"])
-    rows.append(["群名", "網羅的探索群／均等群／局所滞留群", "広範・高頻度群／広範・中頻度群／限定・長時間群"])
+    rows.append(["表2", "集中度の行なし（5行）", "参照の偏りの行を追加（6行）"])
+    rows.append(["群名", "網羅的探索群／均等群／局所滞留群", "広範・反復群／広範群／限定群"])
     rows.append(["表7", V4["T7_KW"], "削除し「クラスタ数の評価と安定性」の表に置換（表7(a)(b)）"])
     rows.append(["3.3.1 効果量", "ε²（実際は η²<sub>H</sub> の式）", "ε² = *H*/(*n*−1) に統一"])
     rows.append(["3.3.2(2)・付録 人手再評定", V4["T8_pop"], f"既存SOLO評価がある{res['pop_n']}記述から50記述（{res['rate'] * 100:.1f}%）"])
@@ -1715,14 +1715,14 @@ def write_number_table(S):
     rows.append(["4.3.1 KW その他", V4["T11_KW_others"], "最終 " + fp(kw['last']['p']) + "，最大 " + fp(kw['max']['p']) + "，前半 " + fp(kw['front']['p']) + "，後半 " + fp(kw['back']['p']) + "，変化量 " + fp(kw['change']['p'])])
     rows.append(["表12・要旨・5章", V4["T12"], f"FFH正確 *p* = {fp(r2['p_ffh'])}, *V* = {fz(r2['V'], 2)}（最終振り返り）；p9のみ *p* = {fp(r9['p_ffh'])}, *V* = {fz(r9['V'], 2)}（*n* = {r9['n']}）"])
     rows.append(["表12 表題", "最終ページp.9", "最終振り返り（p9 19名・p8 8名・p7 1名）"])
-    rows.append(["4.3.1", V4["s431_consistent"], f"誤り．③1回以上A以上は広範・高頻度群 {rate_txt(r12['ach_any'], 0)} が最高．5定義を全数提示（表12）"])
+    rows.append(["4.3.1", V4["s431_consistent"], f"誤り．③1回以上A以上は広範・反復群 {rate_txt(r12['ach_any'], 0)} が最高．5定義を全数提示（表12）"])
     for g, key in zip(ORDER, ["T13_hi", "T13_mid", "T13_lim"]):
         rows.append([f"表13→表11 {g}", V4[key], f"*W* = {fn(wil[g]['W'], 1)}, 正確 *p* = {fp(wil[g]['p_exact'])}, *r* = {fz(wil[g]['r'], 2)}"])
     rows.append(["4.3.1・5章（新規）", "—", f"学級全体 Δ = {fs(al['delta_M'])}, *W* = {fn(al['W'], 1)}, *p* {fpe(al['p_exact'])}；変化量の群間差 *p* = {fp(kw['change']['p'])}；交互作用 *p* = {fp(lm['p'])}"])
     rows.append(["要旨", V4["abs_within"], f"Reflections deepened across the class (Δ = {fs(al['delta_M'])}, exact *p* {fpe(al['p_exact'])}), with no between-group difference in change (*p* = {fp(kw['change']['p'])})"])
     rows.append(["要旨", V4["abs_climax"], f"In the final reflection: {rate_txt(r2, 1).split('（')[0]} vs {rate_txt(r2, 0).split('（')[0]}/{rate_txt(r2, 2).split('（')[0]} (Fisher–Freeman–Halton *p* = {fp(r2['p_ffh'])}, *V* = {fz(r2['V'], 2)})"])
-    rows.append(["表14・4.3.1・5章", V4["T14"] + "／" + V4["s5_pred"], f"本文から削除（単変量 ρ = {fz(LT.set_index('指標').loc['参照の広さ', '単変量rho'], 3)}，ブートストラップ区間が0をまたぐ）．補足資料へ"])
-    rows.append(["4.3.2", V4["s432"], f"誤り．要素3がAは到達14名中{T433['eC_A']}名（広範・中頻度群12名中{T433['mid_ach_eC_A']}名）"])
+    rows.append(["表14・4.3.1・5章", V4["T14"] + "／" + V4["s5_pred"], f"本文から削除（単変量 ρ = {fz(LT.set_index('指標').loc['参照人数', '単変量rho'], 3)}，ブートストラップ区間が0をまたぐ）．補足資料へ"])
+    rows.append(["4.3.2", V4["s432"], f"誤り．要素3がAは到達14名中{T433['eC_A']}名（広範群12名中{T433['mid_ach_eC_A']}名）"])
     rows.append(["4.1（新規）", "シルエット係数のみ（0.429）", f"*k* = 2〜6の4指標，Jaccard {', '.join(fz(J.loc[g, 'boot_mean'], 2) for g in ORDER)}，4指標・Ward・分母27でARI = 1.00"])
     rows.append(["4.3.2（新設）", "—", f"要素1・2のみで到達率同一（{'／'.join(f'{100 * a_ / n_:.0f}' for a_, n_ in eAB['r2']['counts'])}%），SOLO {'／'.join(f'{100 * a_ / n_:.0f}' for a_, n_ in eS['r2']['counts'])}%，要素3のみ {'／'.join(f'{100 * a_ / n_:.0f}' for a_, n_ in eC_['r2']['counts'])}%．判定 {T432['scenario']}"])
     w(md_table(["箇所", "旧（v4）", "新"], rows))
